@@ -10,7 +10,7 @@ pipeline {
     stages {
         stage('Clone Repository') {
             steps {
-                git 'https://github.com/anirudh24-create/TicTacToe.git'
+                git branch: 'main', url: 'https://github.com/anirudh24-create/TicTacToe.git'
             }
         }
 
