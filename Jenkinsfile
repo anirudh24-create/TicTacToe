@@ -8,6 +8,13 @@ pipeline {
     }
 
     stages {
+        stage('Check Docker') {
+            steps {
+                sh 'which docker || echo "Docker not found"'
+                sh 'docker --version || echo "Docker command failed"'
+                sh 'echo $PATH'
+            }
+        }
         stage('Clone Repository') {
             steps {
                 git branch: 'main', url: 'https://github.com/anirudh24-create/TicTacToe.git'
