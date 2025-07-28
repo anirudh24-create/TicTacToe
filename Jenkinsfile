@@ -11,7 +11,7 @@ pipeline {
     stages {
         stage('Clean Workspace') {
             steps {
-                cleanWs()  // Clean previous workspace to ensure a fresh start
+                cleanWs() 
             }
         }
 
@@ -25,6 +25,8 @@ pipeline {
 
         stage('Clone Repository') {
             steps {
+                sh 'pwd'
+                sh 'ls -al'
                 git branch: 'main', url: 'https://github.com/anirudh24-create/TicTacToe.git'
                 sh 'git status'
             }
