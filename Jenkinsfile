@@ -5,7 +5,7 @@ pipeline {
         IMAGE_NAME = "flask-docker-app"
         CONTAINER_NAME = "flask-docker-container"
         APP_PORT = "8080"
-        HOST_PORT = "8081"
+        HOST_PORT = "8080"
     }
 
     stages {
