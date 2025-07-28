@@ -16,8 +16,10 @@ pipeline {
                 sh 'echo $PATH'
             }
         }
+        
         stage('Clone Repository') {
             steps {
+                cleanWs()  // Clean up any previous workspace
                 script {
                     try {
                         git branch: 'main', url: 'https://github.com/anirudh24-create/TicTacToe.git'
@@ -30,7 +32,6 @@ pipeline {
             }
         }
 
-
         stage('Build Docker Image') {
             steps {
                 script {
@@ -42,7 +43,11 @@ pipeline {
         stage('Stop Old Container') {
             steps {
                 script {
-                    sh "docker rm -f ${CONTAINER_NAME} || true"
+                    try {
+                        sh "docker rm -f ${CONTAINER_NAME} || true"
+                    } catch (Exception e) {
+                        echo "Error stopping container: ${e.getMessage()}"
+                    }
                 }
             }
         }
@@ -50,9 +55,15 @@ pipeline {
         stage('Run New Container') {
             steps {
                 script {
-                    docker.image("${IMAGE_NAME}").run(
-                        "-d -p ${HOST_PORT}:${APP_PORT} --name ${CONTAINER_NAME}"
-                    )
+                    try {
+                        docker.image("${IMAGE_NAME}").run(
+                            "-d -p ${HOST_PORT}:${APP_PORT} --name ${CONTAINER_NAME}"
+                        )
+                    } catch (Exception e) {
+                        echo "Error running container: ${e.getMessage()}"
+                        currentBuild.result = 'FAILURE'
+                        return
+                    }
                 }
             }
         }
