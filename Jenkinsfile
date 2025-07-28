@@ -5,6 +5,7 @@ pipeline {
         IMAGE_NAME = "flask-docker-app"
         CONTAINER_NAME = "flask-docker-container"
         APP_PORT = "8080"
+        HOST_PORT = "8081"
     }
 
     stages {
@@ -41,7 +42,7 @@ pipeline {
             steps {
                 script {
                     docker.image("${IMAGE_NAME}").run(
-                        "-d -p ${APP_PORT}:${APP_PORT} --name ${CONTAINER_NAME}"
+                        "-d -p ${HOST_PORT}:${APP_PORT} --name ${CONTAINER_NAME}"
                     )
                 }
             }
