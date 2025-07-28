@@ -35,7 +35,8 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build("${IMAGE_NAME}")
+                    // Build the Docker image with the specified image name
+                    sh "docker build -t ${IMAGE_NAME} ."
                 }
             }
         }
@@ -43,6 +44,7 @@ pipeline {
         stage('Stop Old Container') {
             steps {
                 script {
+                    // Stop and remove any existing container
                     sh "docker rm -f ${CONTAINER_NAME} || true"
                 }
             }
@@ -51,9 +53,8 @@ pipeline {
         stage('Run New Container') {
             steps {
                 script {
-                    docker.image("${IMAGE_NAME}").run(
-                        "-d -p ${HOST_PORT}:${APP_PORT} --name ${CONTAINER_NAME}"
-                    )
+                    // Run the new Docker container
+                    sh "docker run -d -p ${HOST_PORT}:${APP_PORT} --name ${CONTAINER_NAME} ${IMAGE_NAME}"
                 }
             }
         }
