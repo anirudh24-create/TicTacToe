@@ -7,8 +7,15 @@ pipeline {
         APP_PORT = "8080"
         HOST_PORT = "8081"
     }
+    
 
     stages {
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()  // Clean previous workspace to ensure a fresh start
+            }
+        }
+    
         stage('Check Docker') {
             steps {
                 sh 'which docker || echo "Docker not found"'
