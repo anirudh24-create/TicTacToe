@@ -18,9 +18,18 @@ pipeline {
         }
         stage('Clone Repository') {
             steps {
-                git branch: 'main', url: 'https://github.com/anirudh24-create/TicTacToe.git'
+                script {
+                    try {
+                        git branch: 'main', url: 'https://github.com/anirudh24-create/TicTacToe.git'
+                    } catch (Exception e) {
+                        echo "Git clone failed: ${e.getMessage()}"
+                        currentBuild.result = 'FAILURE'
+                        return
+                    }
+                }
             }
         }
+
 
         stage('Build Docker Image') {
             steps {
