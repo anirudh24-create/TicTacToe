@@ -11,7 +11,7 @@ permissions:
 
 env:
   AWS_REGION: ca-west-1
-  ECR_REPOSITORY: flask-app
+  ECR_REPOSITORY: project-repo
 
 jobs:
   build-and-push:
