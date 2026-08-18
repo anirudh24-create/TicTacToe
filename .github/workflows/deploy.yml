@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Build, Push and Deploy
 
 on:
   push:
@@ -46,3 +46,39 @@ jobs:
         run: |
           docker push $REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
           docker push $REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Save Docker image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker save \
+            $REGISTRY/$ECR_REPOSITORY:${{ github.sha }} \
+            -o app.tar
+
+      - name: Copy Docker image to EC2
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "app.tar"
+          target: "/home/ubuntu/"
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            docker load -i /home/ubuntu/app.tar
+
+            docker stop tictactoe || true
+            docker rm tictactoe || true
+
+            docker run -d \
+              --name tictactoe \
+              -p 8080:8080 \
+              ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+
+            rm /home/ubuntu/app.tar
