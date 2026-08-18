@@ -31,54 +31,51 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build Docker image
+      - name: Build and push Docker image
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          docker build -t $REGISTRY/$ECR_REPOSITORY:${{ github.sha }} .
-          docker tag \
-            $REGISTRY/$ECR_REPOSITORY:${{ github.sha }} \
-            $REGISTRY/$ECR_REPOSITORY:latest
+          docker build \
+            -t $REGISTRY/$ECR_REPOSITORY:${{ github.sha }} \
+            -t $REGISTRY/$ECR_REPOSITORY:latest \
+            .
 
-      - name: Push Docker image
-        env:
-          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        run: |
           docker push $REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
           docker push $REGISTRY/$ECR_REPOSITORY:latest
 
-      - name: Save Docker image
-        env:
-          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        run: |
-          docker save \
-            $REGISTRY/$ECR_REPOSITORY:${{ github.sha }} \
-            -o app.tar
-
-      - name: Copy Docker image to EC2
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "app.tar"
-          target: "/home/ubuntu/"
-
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1
+        env:
+          AWS_REGION: ${{ env.AWS_REGION }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.sha }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          envs: AWS_REGION,ECR_REGISTRY,ECR_REPOSITORY,IMAGE_TAG
           script: |
-            docker load -i /home/ubuntu/app.tar
+            set -e
 
+            echo "Logging into ECR..."
+            aws ecr get-login-password --region "$AWS_REGION" \
+              | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+
+            echo "Pulling image..."
+            docker pull "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+            echo "Stopping old container..."
             docker stop tictactoe || true
             docker rm tictactoe || true
 
+            echo "Starting new container..."
             docker run -d \
               --name tictactoe \
+              --restart unless-stopped \
               -p 8080:8080 \
-              ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+              "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
-            rm /home/ubuntu/app.tar
+            echo "Deployment complete."
+
+            docker ps --filter "name=tictactoe"
