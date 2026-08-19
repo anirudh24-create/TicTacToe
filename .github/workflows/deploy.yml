@@ -16,7 +16,6 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -39,7 +38,6 @@ jobs:
             -t $REGISTRY/$ECR_REPOSITORY:${{ github.sha }} \
             -t $REGISTRY/$ECR_REPOSITORY:latest \
             .
-
           docker push $REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
           docker push $REGISTRY/$ECR_REPOSITORY:latest
 
@@ -50,11 +48,13 @@ jobs:
           ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
           IMAGE_TAG: ${{ github.sha }}
           EC2_INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+          RDS_ENDPOINT: ${{ secrets.RDS_ENDPOINT }}
+          RDS_USER: ${{ secrets.RDS_USER }}
+          RDS_PASSWORD: ${{ secrets.RDS_PASSWORD }}
+          RDS_NAME: ${{ secrets.RDS_NAME }}
         run: |
           set -e
-
           echo "Sending deployment command to EC2..."
-
           COMMAND_ID=$(aws ssm send-command \
             --region "$AWS_REGION" \
             --instance-ids "$EC2_INSTANCE_ID" \
@@ -68,25 +68,22 @@ jobs:
               \"echo Stopping old container...\",
               \"docker stop tictactoe || true\",
               \"docker rm tictactoe || true\",
-              \"echo Starting new container...\",
-              \"docker run -d --name tictactoe --restart unless-stopped -p 8080:8080 $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG\",
+              \"echo Starting new container with RDS configuration...\",
+              \"docker run -d --name tictactoe --restart unless-stopped -p 8080:8080 -e DB_HOST=$RDS_ENDPOINT -e DB_USER=$RDS_USER -e DB_PASSWORD=$RDS_PASSWORD -e DB_NAME=$RDS_NAME $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG\",
               \"echo Deployment complete.\",
               \"docker ps --filter name=tictactoe\"
             ]" \
             --query "Command.CommandId" \
             --output text)
-
+          
           echo "SSM Command ID: $COMMAND_ID"
-
           echo "Waiting for deployment..."
-
           aws ssm wait command-executed \
             --region "$AWS_REGION" \
             --command-id "$COMMAND_ID" \
             --instance-id "$EC2_INSTANCE_ID"
-
+          
           echo "Deployment finished."
-
           aws ssm get-command-invocation \
             --region "$AWS_REGION" \
             --command-id "$COMMAND_ID" \
